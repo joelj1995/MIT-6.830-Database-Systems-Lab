@@ -14,15 +14,15 @@ public class Tuple {
      * instance with at least one field.
      */
     public Tuple(TupleDesc td) {
-        // some code goes here
+        this.td = td;
+        this.fields = new Field[td.numFields()];
     }
 
     /**
      * @return The TupleDesc representing the schema of this tuple.
      */
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        return td;
     }
 
     /**
@@ -30,8 +30,7 @@ public class Tuple {
      *   disk. May be null.
      */
     public RecordId getRecordId() {
-        // some code goes here
-        return null;
+        return recordId;
     }
 
     /**
@@ -39,7 +38,7 @@ public class Tuple {
      * @param rid the new RecordId for this tuple.
      */
     public void setRecordId(RecordId rid) {
-        // some code goes here
+        this.recordId = rid;
     }
 
     /**
@@ -49,7 +48,7 @@ public class Tuple {
      * @param f new value for the field.
      */
     public void setField(int i, Field f) {
-        // some code goes here
+        fields[i] = f;
     }
 
     /**
@@ -58,8 +57,7 @@ public class Tuple {
      * @param i field index to return. Must be a valid index.
      */
     public Field getField(int i) {
-        // some code goes here
-        return null;
+        return fields[i];
     }
 
     /**
@@ -75,4 +73,8 @@ public class Tuple {
         // some code goes here
         throw new UnsupportedOperationException("Implement this");
     }
+
+    private TupleDesc td;
+    private RecordId recordId;
+    private Field[] fields;
 }

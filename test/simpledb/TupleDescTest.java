@@ -167,6 +167,16 @@ public class TupleDescTest extends SimpleDbTestBase {
         assertFalse(intString.equals(singleInt2));
     }
 
+    @Test public void testToString() {
+        TupleDesc intStringTd = new TupleDesc(new Type[]{Type.INT_TYPE, Type.STRING_TYPE}, new String[] { "foo", "var"});
+        String intStringTdString = intStringTd.toString();
+        assertTrue(intStringTdString.equals("INT(foo), STRING(var)"));
+
+        intStringTd = new TupleDesc(new Type[]{Type.INT_TYPE, Type.STRING_TYPE}, new String[] { "foo", null });
+        intStringTdString = intStringTd.toString();
+        assertTrue(intStringTdString.equals("INT(foo), STRING()"));
+    }
+
     /**
      * JUnit suite target
      */
