@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.*;
 
 /**
@@ -34,7 +35,9 @@ public class Catalog {
      * conflict exists, use the last table to be added as the table for a given name.
      */
     public void addTable(DbFile file, String name, String pkeyField) {
-        // some code goes here
+        CatalogTableEntry newTableEntry = new CatalogTableEntry(file, name, pkeyField);
+        int tableId = file.getId();
+        tables.put(tableId, newTableEntry);
     }
 
     public void addTable(DbFile file, String name) {
@@ -58,8 +61,11 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public int getTableId(String name) {
-        // some code goes here
-        return 0;
+        for (var entry : tables.entrySet()) {
+            var entryValue = entry.getValue();
+            if (entryValue.getName().equals(name)) return entry.getKey();
+        }
+        throw new NoSuchElementException(MessageFormat.format("Table {0} could not be found", name));
     }
 
     /**
@@ -68,8 +74,7 @@ public class Catalog {
      *     function passed to addTable
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
-        // some code goes here
-        return null;
+        return tables.get(tableid).getTupleDesc();
     }
 
     /**
@@ -79,28 +84,24 @@ public class Catalog {
      *     function passed to addTable
      */
     public DbFile getDbFile(int tableid) throws NoSuchElementException {
-        // some code goes here
-        return null;
+        return tables.get(tableid).getFile();
     }
 
     /** Delete all tables from the catalog */
     public void clear() {
-        // some code goes here
+        tables.clear();
     }
 
     public String getPrimaryKey(int tableid) {
-        // some code goes here
-        return null;
+        return tables.get(tableid).getPKeyField();
     }
 
     public Iterator<Integer> tableIdIterator() {
-        // some code goes here
-        return null;
+        return tables.keySet().iterator();
     }
 
     public String getTableName(int id) {
-        // some code goes here
-        return null;
+        return tables.get(id).getName();
     }
     
     /**
@@ -156,5 +157,7 @@ public class Catalog {
             System.exit(0);
         }
     }
+
+    private HashMap<Integer, CatalogTableEntry> tables = new HashMap<>();
 }
 

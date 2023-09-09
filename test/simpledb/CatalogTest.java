@@ -68,6 +68,35 @@ public class CatalogTest extends SimpleDbTestBase {
         assertEquals(-1, f.getId());
     }
 
+    /*
+     * Joel: Unit test for Catalog.clear()
+     */
+    @Test public void testClear() {
+        Database.getCatalog().clear();
+        try {
+            assertEquals(-2, Database.getCatalog().getTableId(name));
+            Assert.fail("Should not find table after clearing the catalog.");
+        } catch (NoSuchElementException e) {
+            // Expected to get here
+        }
+    }
+
+    /*
+     * Joel: Unit test for Catalog.getPrimaryKey();
+     */
+    @Test public void testGetPrimaryKey() {
+        var expectedPrimaryKey = "fookey";
+        Database.getCatalog().addTable(new SkeletonFile(-3, Utility.getTupleDesc(2)), "testTable", expectedPrimaryKey);
+        assertEquals(expectedPrimaryKey, Database.getCatalog().getPrimaryKey(-3));
+    }
+
+    /*
+     * Joel: Unit test for Catalog.getTableName()
+     */
+    @Test public void testGetTableName() {
+        assertEquals(nameThisTestRun, Database.getCatalog().getTableName(-1));
+    }
+
     /**
      * JUnit suite target
      */
