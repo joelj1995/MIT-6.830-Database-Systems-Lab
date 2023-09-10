@@ -64,20 +64,15 @@ public class HeapPage implements Page {
         @return the number of tuples on this page
     */
     private int getNumTuples() {        
-        // some code goes here
-        return 0;
-
+        return (BufferPool.PAGE_SIZE * 8) / (td.getSize() * 8 + 1);
     }
 
     /**
      * Computes the number of bytes in the header of a page in a HeapFile with each tuple occupying tupleSize bytes
      * @return the number of bytes in the header of a page in a HeapFile with each tuple occupying tupleSize bytes
      */
-    private int getHeaderSize() {        
-        
-        // some code goes here
-        return 0;
-                 
+    private int getHeaderSize() {
+        return Math.ceilDiv(getNumTuples(), 8);
     }
     
     /** Return a view of this page before it was modified
@@ -101,8 +96,7 @@ public class HeapPage implements Page {
      * @return the PageId associated with this page.
      */
     public HeapPageId getId() {
-    // some code goes here
-    throw new UnsupportedOperationException("implement this");
+        return pid;
     }
 
     /**
@@ -272,24 +266,41 @@ public class HeapPage implements Page {
      * Returns the number of empty slots on this page.
      */
     public int getNumEmptySlots() {
-        // some code goes here
-        return 0;
+        int result = 0;
+        for (int i = 0; i < header.length; i++) {
+            for (int j = 0; j < 8; j++) {
+                if ((header[i] & 1 << j) == 0)
+                    result++;
+            }
+        }
+        return result;
     }
 
     /**
      * Returns true if associated slot on this page is filled.
      */
     public boolean getSlot(int i) {
-        // some code goes here
-        return false;
+        int byteNum = i / 8;
+        int bitNum = i % 8;
+        return (header[byteNum] & 1 << bitNum) > 0;
     }
 
     /**
      * Abstraction to fill or clear a slot on this page.
      */
     private void setSlot(int i, boolean value) {
-        // some code goes here
-        // not necessary for lab1
+        int byteNum = i / 8;
+        int bitNum = i % 8;
+        int bit = value ? 1 : 0;
+        int mask = bit << bitNum;
+        int newHeaderByte = header[byteNum];
+        if (value) {
+            newHeaderByte = newHeaderByte | mask;
+        }
+        else {
+            newHeaderByte = newHeaderByte & mask;
+        }
+        header[byteNum] =  (byte) newHeaderByte;
     }
 
     /**
@@ -297,8 +308,13 @@ public class HeapPage implements Page {
      * (note that this iterator shouldn't return tuples in empty slots!)
      */
     public Iterator<Tuple> iterator() {
-        // some code goes here
-        return null;
+        var result = new ArrayList<Tuple>();
+        for (int i = 0; i < numSlots; i++) {
+            if (getSlot(i)) {
+                result.add(tuples[i]);
+            }
+        }
+        return result.iterator();
     }
 
 }
