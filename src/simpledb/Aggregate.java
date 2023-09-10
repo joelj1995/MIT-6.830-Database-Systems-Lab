@@ -22,7 +22,28 @@ public class Aggregate extends AbstractDbIterator {
      * @param aop The aggregation operator to use
      */
     public Aggregate(DbIterator child, int afield, int gfield, Aggregator.Op aop) {
-        // some code goes here
+        this.child = child;
+        var afieldType = child.getTupleDesc().getType(afield);
+        var gfieldType = child.getTupleDesc().getType(gfield);
+        var gfieldName = child.getTupleDesc().getFieldName(gfield);
+        switch (aop) {
+            case MIN:
+            case MAX:
+            case AVG:
+            case SUM:
+                this.aggregator = new IntAggregator(gfield, gfieldType, afield, aop);
+            case COUNT:
+                if (afieldType.equals(Type.INT_TYPE)) this.aggregator = new IntAggregator(gfield, gfieldType, afield, aop);
+                else this.aggregator = new StringAggregator(gfield, gfieldType, afield, aop);
+        }
+        this.afield = afield;
+        this.gfield = gfield;
+        this.aop = aop;
+        if (gfield == Aggregator.NO_GROUPING) {
+            this.td = new TupleDesc(new Type[] { Type.INT_TYPE }, new String[] { aggName(aop) });
+        } else {
+            this.td = new TupleDesc(new Type[] { afieldType, Type.INT_TYPE }, new String[] { gfieldName, aggName(aop) });
+        }
     }
 
     public static String aggName(Aggregator.Op aop) {
@@ -43,7 +64,12 @@ public class Aggregate extends AbstractDbIterator {
 
     public void open()
         throws NoSuchElementException, DbException, TransactionAbortedException {
-        // some code goes here
+        child.open();
+        while (child.hasNext()) {
+            aggregator.merge(child.next());
+        }
+        aggregatorIterator = aggregator.iterator();
+        aggregatorIterator.open();
     }
 
     /**
@@ -55,12 +81,13 @@ public class Aggregate extends AbstractDbIterator {
      * Should return null if there are no more tuples.
      */
     protected Tuple readNext() throws TransactionAbortedException, DbException {
-        // some code goes here
+        if (aggregatorIterator.hasNext())
+            return aggregatorIterator.next();
         return null;
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        aggregatorIterator.rewind();
     }
 
     /**
@@ -75,11 +102,18 @@ public class Aggregate extends AbstractDbIterator {
      * of the child iterator. 
      */
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        return td;
     }
 
     public void close() {
-        // some code goes here
+        aggregatorIterator.close();
     }
+
+    DbIterator child;
+    DbIterator aggregatorIterator;
+    Aggregator aggregator;
+    int afield;
+    int gfield;
+    Aggregator.Op aop;
+    TupleDesc td;
 }

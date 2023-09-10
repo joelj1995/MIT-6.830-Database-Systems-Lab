@@ -15,7 +15,8 @@ public class IntAggregatorTest extends SimpleDbTestBase {
 
   int width1 = 2;
   DbIterator scan1;
-  int[][] sum = null;
+  int[][] sum = null;  
+  int[][] scalarSum = null;
   int[][] min = null;
   int[][] max = null;
   int[][] avg = null;
@@ -39,6 +40,13 @@ public class IntAggregatorTest extends SimpleDbTestBase {
       { 1, 6 },
       { 1, 12 },
       { 1, 12, 3, 2 }
+    };
+
+    this.scalarSum = new int[][] {
+      { 2 },
+      { 6 },
+      { 12 },
+      { 14 }
     };
 
     this.min = new int[][] {
@@ -74,6 +82,20 @@ public class IntAggregatorTest extends SimpleDbTestBase {
       agg.merge(scan1.next());
       DbIterator it = agg.iterator();
       TestUtil.matchAllTuples(TestUtil.createTupleList(width1, step), it);
+    }
+  }
+
+  /**
+   * Test IntAggregator.merge() and iterator() over a sum without grouping
+   */
+  @Test public void mergeSumScalar() throws Exception {
+    scan1.open();
+    IntAggregator agg = new IntAggregator(Aggregator.NO_GROUPING, Type.INT_TYPE, 1, Aggregator.Op.SUM);
+    
+    for (int[] step : scalarSum) {
+      agg.merge(scan1.next());
+      DbIterator it = agg.iterator();
+      TestUtil.matchAllTuples(TestUtil.createTupleList(1, step), it);
     }
   }
 

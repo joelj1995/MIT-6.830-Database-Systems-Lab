@@ -14,6 +14,7 @@ public class StringAggregatorTest extends SimpleDbTestBase {
   int width1 = 2;
   DbIterator scan1;
   int[][] count = null;
+  int[][] scalarCount = null;
 
   /**
    * Initialize each unit test
@@ -36,6 +37,13 @@ public class StringAggregatorTest extends SimpleDbTestBase {
       { 1, 3, 3, 1 }
     };
 
+    this.scalarCount = new int[][] {
+      { 1 },
+      { 2 },
+      { 3 },
+      { 4 }
+    };
+
   }
 
   /**
@@ -49,6 +57,20 @@ public class StringAggregatorTest extends SimpleDbTestBase {
       agg.merge(scan1.next());
       DbIterator it = agg.iterator();
       TestUtil.matchAllTuples(TestUtil.createTupleList(width1, step), it);
+    }
+  }
+
+  /**
+   * Test String.merge() and iterator() over a COUNT without grouping
+   */
+  @Test public void mergeScalarCount() throws Exception {
+    scan1.open();
+    StringAggregator agg = new StringAggregator(Aggregator.NO_GROUPING, Type.INT_TYPE, 1, Aggregator.Op.COUNT);
+
+    for (int[] step : scalarCount) {
+      agg.merge(scan1.next());
+      DbIterator it = agg.iterator();
+      TestUtil.matchAllTuples(TestUtil.createTupleList(1, step), it);
     }
   }
 

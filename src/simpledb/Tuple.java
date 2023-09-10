@@ -70,8 +70,15 @@ public class Tuple {
      * where \t is any whitespace, except newline, and \n is a newline
      */
     public String toString() {
-        // some code goes here
-        throw new UnsupportedOperationException("Implement this");
+        String result = "";
+        for (int i = 0; i < fields.length; i++) {
+            if (i != 0) {
+                result += " ";
+            }
+            result += fields[i].toString();
+        }
+        result += '\n';
+        return result;
     }
 
     private TupleDesc td;
