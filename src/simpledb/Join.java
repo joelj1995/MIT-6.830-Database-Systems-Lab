@@ -15,28 +15,32 @@ public class Join extends AbstractDbIterator {
      * @param child2 Iterator for the right(inner) relation to join
      */
     public Join(JoinPredicate p, DbIterator child1, DbIterator child2) {
-        // some code goes here
+        this._p = p;
+        this.childIterator1 = child1;
+        this.childIterator2 = child2;
     }
 
     /**
      * @see simpledb.TupleDesc#combine(TupleDesc, TupleDesc) for possible implementation logic.
      */
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        return TupleDesc.combine(childIterator1.getTupleDesc(), childIterator2.getTupleDesc());
     }
 
     public void open()
         throws DbException, NoSuchElementException, TransactionAbortedException {
-        // some code goes here
+        childIterator1.open();
+        childIterator2.open();
     }
 
     public void close() {
-        // some code goes here
+        childIterator1.close();
+        childIterator2.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        childIterator1.rewind();
+        childIterator2.rewind();
     }
 
     /**
@@ -59,7 +63,36 @@ public class Join extends AbstractDbIterator {
      * @see JoinPredicate#filter
      */
     protected Tuple readNext() throws TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+        try {
+            if (currentOuterTuple == null) {
+                currentOuterTuple = childIterator1.next();
+            }
+            while (true) {
+                if (childIterator2.hasNext()) {
+                    Tuple child2Next = childIterator2.next();
+                    if (_p.filter(currentOuterTuple, child2Next)) {
+                        Tuple newTuple = new Tuple(getTupleDesc());
+                        for (int i = 0; i < getTupleDesc().numFields(); i++) {
+                            if (i < currentOuterTuple.getTupleDesc().numFields()) {
+                                newTuple.setField(i, currentOuterTuple.getField(i));
+                            } else {
+                                newTuple.setField(i, child2Next.getField(i - currentOuterTuple.getTupleDesc().numFields()));
+                            }
+                        }
+                        return newTuple;
+                    }
+                } else {
+                    currentOuterTuple = childIterator1.next();
+                    childIterator2.rewind();
+                }
+            }
+        } catch (NoSuchElementException e) {
+            return null;
+        }
     }
+
+    private JoinPredicate _p;
+    private DbIterator childIterator1; // outer
+    private DbIterator childIterator2; // inner
+    private Tuple currentOuterTuple;
 }

@@ -14,25 +14,25 @@ public class Filter extends AbstractDbIterator {
      * @param child The child operator
      */
     public Filter(Predicate p, DbIterator child) {
-        // some code goes here
+        this.predicate = p;
+        this.childIterator = child;
     }
 
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        return childIterator.getTupleDesc();
     }
 
     public void open()
         throws DbException, NoSuchElementException, TransactionAbortedException {
-        // some code goes here
+        childIterator.open();
     }
 
     public void close() {
-        // some code goes here
+        childIterator.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        childIterator.rewind();
     }
 
     /**
@@ -45,8 +45,18 @@ public class Filter extends AbstractDbIterator {
      * @see Predicate#filter
      */
     protected Tuple readNext()
-        throws NoSuchElementException, TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+            throws NoSuchElementException, TransactionAbortedException, DbException {
+        try {
+            Tuple next;
+            do {
+                next = childIterator.next();
+            } while (!predicate.filter(next));
+            return next;
+        } catch (NoSuchElementException e) {
+            return null;
+        }
     }
+    
+    private Predicate predicate;
+    private DbIterator childIterator;
 }
