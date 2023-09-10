@@ -1,6 +1,7 @@
 package simpledb;
 
 import java.io.*;
+import java.util.Hashtable;
 /**
  * BufferPool manages the reading and writing of pages into memory from
  * disk. Access methods call into it to retrieve pages, and it fetches
@@ -25,7 +26,8 @@ public class BufferPool {
      * @param numPages maximum number of pages in this buffer pool.
      */
     public BufferPool(int numPages) {
-        // some code goes here
+        this.numPages = numPages;
+        this.pages = new Hashtable<>(numPages);
     }
 
     /**
@@ -45,8 +47,14 @@ public class BufferPool {
      */
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+        var page = pages.get(tid.hashCode());
+        if (page != null) {
+            return page;
+        }
+        var file = Database.getCatalog().getDbFile(pid.getTableId());
+        page = file.readPage(pid);
+        pages.put(pid.hashCode(), page);
+        return page;
     }
 
     /**
@@ -178,4 +186,6 @@ public class BufferPool {
         // not necessary for lab1
     }
 
+    private int numPages;
+    private Hashtable<Integer, Page> pages;
 }
