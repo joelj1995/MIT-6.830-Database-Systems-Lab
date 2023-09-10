@@ -21,12 +21,16 @@ public class SeqScan implements DbIterator {
      *         name can be null.fieldName, tableAlias.null, or null.null).
      */
     public SeqScan(TransactionId tid, int tableid, String tableAlias) {
-        // some code goes here
+        this.tid = tid;
+        this.tableid = tableid;
+        this.tableAlias = tableAlias;
+        var file = Database.getCatalog().getDbFile(tableid);
+        this.dbFileIterator = file.iterator(tid);
     }
 
     public void open()
         throws DbException, TransactionAbortedException {
-        // some code goes here
+        dbFileIterator.open();
     }
 
     /**
@@ -36,27 +40,29 @@ public class SeqScan implements DbIterator {
      * prefixed with the tableAlias string from the constructor.
      */
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        return Database.getCatalog().getTupleDesc(tableid).withPrefix(tableAlias);
     }
 
     public boolean hasNext() throws TransactionAbortedException, DbException {
-        // some code goes here
-        return false;
+        return dbFileIterator.hasNext();
     }
 
     public Tuple next()
         throws NoSuchElementException, TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+        return dbFileIterator.next();
     }
 
     public void close() {
-        // some code goes here
+        dbFileIterator.close();
     }
 
     public void rewind()
         throws DbException, NoSuchElementException, TransactionAbortedException {
-        // some code goes here
+        dbFileIterator.rewind();
     }
+
+    private TransactionId tid; 
+    private int tableid; 
+    private String tableAlias;
+    private DbFileIterator dbFileIterator;
 }

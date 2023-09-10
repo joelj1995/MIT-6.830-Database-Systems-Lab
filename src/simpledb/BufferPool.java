@@ -27,7 +27,7 @@ public class BufferPool {
      */
     public BufferPool(int numPages) {
         this.numPages = numPages;
-        this.pages = new Hashtable<>(numPages);
+        this.pages = new Hashtable<>(numPages, 1.0f);
     }
 
     /**
@@ -47,7 +47,7 @@ public class BufferPool {
      */
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
-        var page = pages.get(tid.hashCode());
+        var page = pages.get(pid.hashCode());
         if (page != null) {
             return page;
         }

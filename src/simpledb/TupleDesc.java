@@ -176,6 +176,17 @@ public class TupleDesc {
         return result;
     }
 
+    /**
+     * Joel: Clone the current TupleDesc but prefix the field names
+     */
+    public TupleDesc withPrefix(String prefix) {
+        String[] prefixedFieldAr = new String[numFields()];
+        for (int i = 0; i < numFields(); i++) {
+            prefixedFieldAr[i] = prefix + "." + fieldAr[i];
+        }
+        return new TupleDesc(this.typeAr, prefixedFieldAr);
+    }
+
     private Type[] typeAr; 
     private String[] fieldAr;
 }

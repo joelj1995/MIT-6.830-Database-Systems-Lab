@@ -233,12 +233,41 @@ public class TestUtil {
         }
 
         public DbFileIterator iterator(TransactionId tid) {
-            throw new RuntimeException("not implemented");
+            return new NullDbFileIterator();
         }
 
 		public TupleDesc getTupleDesc() {			
 			return td;
 		}
+
+        private class NullDbFileIterator implements DbFileIterator {
+
+            @Override
+            public void open() throws DbException, TransactionAbortedException {
+                throw new UnsupportedOperationException("Unimplemented method 'open'");
+            }
+
+            @Override
+            public boolean hasNext() throws DbException, TransactionAbortedException {
+                throw new UnsupportedOperationException("Unimplemented method 'hasNext'");
+            }
+
+            @Override
+            public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
+                throw new UnsupportedOperationException("Unimplemented method 'next'");
+            }
+
+            @Override
+            public void rewind() throws DbException, TransactionAbortedException {
+                throw new UnsupportedOperationException("Unimplemented method 'rewind'");
+            }
+
+            @Override
+            public void close() {
+                throw new UnsupportedOperationException("Unimplemented method 'close'");
+            }
+
+        }
     }
 
     /**
@@ -393,4 +422,6 @@ public class TestUtil {
         protected HeapFile empty;
         private final File emptyFile;
     }
+
+    
 }
