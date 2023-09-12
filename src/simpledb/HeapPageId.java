@@ -70,6 +70,16 @@ public class HeapPageId implements PageId {
         return data;
     }
 
-    int tableId;
-    int pgNo;
+    public HeapPageId forward()
+    {
+        return new HeapPageId(tableId, pgNo + 1);
+    }
+
+    public HeapPageId back()
+    {
+        return new HeapPageId(tableId, pgNo - 1);
+    }
+
+    private final int tableId;
+    private final int pgNo;
 }

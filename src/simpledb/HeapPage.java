@@ -228,8 +228,16 @@ public class HeapPage implements Page {
      * @param t The tuple to delete
      */
     public void deleteTuple(Tuple t) throws DbException {
-        // some code goes here
-        // not necessary for lab1
+        for (int i = 0; i < numSlots; i++) {
+            if (getSlot(i)) {
+                if (tuples[i].equals(t)) {
+                    setSlot(i, false);
+                    t.setRecordId(null);
+                    return;
+                }
+            }
+        }
+        throw new DbException("The tuple could not be found.");
     }
 
     /**
@@ -240,8 +248,15 @@ public class HeapPage implements Page {
      * @param t The tuple to add.
      */
     public void addTuple(Tuple t) throws DbException {
-        // some code goes here
-        // not necessary for lab1
+        for (int i = 0; i < numSlots; i++) {
+            if (!getSlot(i)) {
+                t.setRecordId(new RecordId(pid, i));
+                tuples[i] = t;
+                setSlot(i, true);
+                return;
+            }
+        }
+        throw new DbException("Empty slot not found.");
     }
 
     /**
@@ -249,17 +264,19 @@ public class HeapPage implements Page {
      * that did the dirtying
      */
     public void markDirty(boolean dirty, TransactionId tid) {
-        // some code goes here
-	// not necessary for lab1
+        if (dirty) {
+            this.dirtyFromTransactionId = tid;
+        }
+        else {
+            this.dirtyFromTransactionId = null;
+        }
     }
 
     /**
      * Returns the tid of the transaction that last dirtied this page, or null if the page is not dirty
      */
     public TransactionId isDirty() {
-        // some code goes here
-	// Not necessary for lab1
-        return null;
+        return this.dirtyFromTransactionId;
     }
 
     /**
@@ -291,14 +308,13 @@ public class HeapPage implements Page {
     private void setSlot(int i, boolean value) {
         int byteNum = i / 8;
         int bitNum = i % 8;
-        int bit = value ? 1 : 0;
-        int mask = bit << bitNum;
+        int mask = 1 << bitNum;
         int newHeaderByte = header[byteNum];
         if (value) {
             newHeaderByte = newHeaderByte | mask;
         }
         else {
-            newHeaderByte = newHeaderByte & mask;
+            newHeaderByte = newHeaderByte & ~mask;
         }
         header[byteNum] =  (byte) newHeaderByte;
     }
@@ -317,5 +333,6 @@ public class HeapPage implements Page {
         return result.iterator();
     }
 
+    private TransactionId dirtyFromTransactionId = null;
 }
 

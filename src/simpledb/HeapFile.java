@@ -97,22 +97,53 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     public ArrayList<Page> addTuple(TransactionId tid, Tuple t)
         throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        return null;
-        // not necessary for lab1
+        var pageForInsert = getPageForInsert(tid);
+        pageForInsert.addTuple(t);
+        writePage(pageForInsert);
+        var result = new ArrayList<Page>();
+        result.add(pageForInsert);
+        return result;
     }
 
     // see DbFile.java for javadocs
     public Page deleteTuple(TransactionId tid, Tuple t)
         throws DbException, TransactionAbortedException {
-        // some code goes here
-        return null;
-        // not necessary for lab1
+        var iTuples = iterator(tid);
+        iTuples.open();
+        while (iTuples.hasNext()) {
+            var nextTuple = iTuples.next();
+            if (nextTuple.equals(t)) {
+                var pageId = nextTuple.getRecordId().getPageId();
+                iTuples.close();
+                var page = (HeapPage)Database.getBufferPool().getPage(tid, pageId, null);
+                page.deleteTuple(t);
+                try {
+                    writePage(page);
+                }
+                catch (IOException e) {
+                    e.printStackTrace();
+                    System.exit(1);
+                }
+                return page;
+            }
+        }
+        throw new DbException("Tuple not found.");
     }
 
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
         return new HeapFileIterator(this, tid);
+    }
+
+    private HeapPage getPageForInsert(TransactionId tid) throws IOException, TransactionAbortedException, DbException {
+        var lastPageId = new HeapPageId(getId(), numPages() - 1);
+        var page = (HeapPage)Database.getBufferPool().getPage(tid, lastPageId, null);
+
+        if (page.getNumEmptySlots() > 0) return page;
+
+        var newPageId = lastPageId.forward();
+        var newPage = new HeapPage(newPageId, HeapPage.createEmptyPageData());
+        return newPage;
     }
     
     private final File f;
