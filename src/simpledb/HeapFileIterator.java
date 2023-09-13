@@ -23,8 +23,14 @@ public class HeapFileIterator implements DbFileIterator {
     public boolean hasNext() throws DbException, TransactionAbortedException {
         if (!isOpen)
             return false;
-        if (numPages > 0 && curPageNo + 1 < numPages)
-            return true;
+        if (curPageNo == -1) return false;
+        if (curPageNo + 1 < numPages) {
+            for (int i = curPageNo + 1; i < numPages; i++) {
+                PageId pageToPeak = new HeapPageId(fileId, i);
+                HeapPage peakPage = (HeapPage) bp.getPage(tid, pageToPeak, Permissions.READ_ONLY);
+                if (peakPage.getNumEmptySlots() < peakPage.numSlots) return true;
+            }
+        }
         return curPageIterator.hasNext();
     }
 
@@ -44,9 +50,15 @@ public class HeapFileIterator implements DbFileIterator {
     }
 
     private void nextPage() throws TransactionAbortedException, DbException   {
-        curPageNo++;
-        PageId pageToRead = new HeapPageId(fileId, curPageNo);
-        HeapPage curPage = (HeapPage) bp.getPage(tid, pageToRead, Permissions.READ_ONLY);
+        HeapPage curPage = null;
+
+        do {
+            curPageNo++;
+            if (curPageNo >= numPages) throw new NoSuchElementException();
+            PageId pageToRead = new HeapPageId(fileId, curPageNo);
+            curPage = (HeapPage) bp.getPage(tid, pageToRead, Permissions.READ_ONLY);
+        } while (curPage.getNumEmptySlots() == curPage.numSlots);
+        
         curPageIterator = curPage.iterator();
     }
 
@@ -54,7 +66,11 @@ public class HeapFileIterator implements DbFileIterator {
     public void rewind() throws DbException, TransactionAbortedException {
         curPageIterator = null;
         curPageNo = -1;
-        nextPage();
+        try {
+            nextPage();
+        } catch(NoSuchElementException e) {
+            curPageNo = -1;
+        }
     }
 
     @Override

@@ -284,13 +284,10 @@ public class HeapPage implements Page {
      */
     public int getNumEmptySlots() {
         int result = 0;
-        for (int i = 0; i < header.length; i++) {
-            for (int j = 0; j < 8; j++) {
-                if ((header[i] & 1 << j) == 0)
-                    result++;
-            }
+        for (int i = 0; i < numSlots; i++) {
+            if (!getSlot(i)) result++;
         }
-        return result;
+        return Math.min(result, numSlots);
     }
 
     /**

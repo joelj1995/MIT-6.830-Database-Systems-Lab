@@ -117,13 +117,6 @@ public class HeapFile implements DbFile {
                 iTuples.close();
                 var page = (HeapPage)Database.getBufferPool().getPage(tid, pageId, null);
                 page.deleteTuple(t);
-                try {
-                    writePage(page);
-                }
-                catch (IOException e) {
-                    e.printStackTrace();
-                    System.exit(1);
-                }
                 return page;
             }
         }

@@ -1,4 +1,5 @@
 package simpledb;
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -16,24 +17,25 @@ public class Insert extends AbstractDbIterator {
      */
     public Insert(TransactionId t, DbIterator child, int tableid)
         throws DbException {
-        // some code goes here
+        this.t = t;
+        this.child = child;
+        this.tableid = tableid;
     }
 
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        return td;
     }
 
     public void open() throws DbException, TransactionAbortedException {
-        // some code goes here
+        child.open();
     }
 
     public void close() {
-        // some code goes here
+        child.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        child.rewind();
     }
 
     /**
@@ -51,7 +53,31 @@ public class Insert extends AbstractDbIterator {
      */
     protected Tuple readNext()
             throws TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+        var numberOfInsertions = 0;
+        if (burned) {
+            return null;
+        }
+        try {
+            while (child.hasNext()) {
+                var tuple = child.next();
+                Database.getBufferPool().insertTuple(t, tableid, tuple);
+                numberOfInsertions++;
+            }
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+        var result = new Tuple(td);
+        result.setField(0, new IntField(numberOfInsertions));
+        burned = true;
+        return result;
     }
+
+    private static final TupleDesc td = new TupleDesc(new Type[] { Type.INT_TYPE });
+
+    private TransactionId t;
+    private DbIterator child;
+    private int tableid;
+    private boolean burned = false;
 }

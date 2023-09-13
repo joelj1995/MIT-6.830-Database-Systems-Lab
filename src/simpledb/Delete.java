@@ -1,5 +1,7 @@
 package simpledb;
 
+import java.io.IOException;
+
 /**
  * The delete operator.  Delete reads tuples from its child operator and
  * removes them from the table they belong to.
@@ -13,20 +15,20 @@ public class Delete extends AbstractDbIterator {
      * @param child The child operator from which to read tuples for deletion
      */
     public Delete(TransactionId t, DbIterator child) {
-        // some code goes here
+        this.t = t;
+        this.child = child;
     }
 
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        return td;
     }
 
     public void open() throws DbException, TransactionAbortedException {
-        // some code goes here
+        child.open();
     }
 
     public void close() {
-        // some code goes here
+        child.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
@@ -42,7 +44,24 @@ public class Delete extends AbstractDbIterator {
      * @see BufferPool#deleteTuple
      */
     protected Tuple readNext() throws TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+        if (burned) {
+            return null;
+        }
+        var numberOfDeletions = 0;
+        while (child.hasNext()) {
+            var tuple = child.next();
+            Database.getBufferPool().deleteTuple(t, tuple);
+            numberOfDeletions++;
+        }
+        var result = new Tuple(td);
+        result.setField(0, new IntField(numberOfDeletions));
+        burned = true;
+        return result;
     }
+
+    private static final TupleDesc td = new TupleDesc(new Type[] { Type.INT_TYPE });
+
+    private TransactionId t;
+    private DbIterator child;
+    private boolean burned = false;
 }
