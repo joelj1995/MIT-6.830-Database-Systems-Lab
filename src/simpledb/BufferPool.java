@@ -26,8 +26,9 @@ public class BufferPool {
      * @param numPages maximum number of pages in this buffer pool.
      */
     public BufferPool(int numPages) {
-        this.numPages = numPages;
-        this.pages = new Hashtable<>(numPages, 1.0f);
+        this.frames = new Page[numPages];
+        this.storedPages = new Hashtable<Integer, BufferPoolPageEntry>(numPages, 1.0f);
+        this.rc = new BufferPoolReplacementClock(numPages);
     }
 
     /**
@@ -47,13 +48,15 @@ public class BufferPool {
      */
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
-        var page = pages.get(pid.hashCode());
-        if (page != null) {
-            return page;
+        var entry = storedPages.get(pid.hashCode());
+        if (entry != null) {
+            return frames[entry.index()];
         }
         var file = Database.getCatalog().getDbFile(pid.getTableId());
-        page = file.readPage(pid);
-        pages.put(pid.hashCode(), page);
+        Page page = file.readPage(pid);
+        var targetFrame = findUnusedFrameIndex();
+        storedPages.put(pid.hashCode(), new BufferPoolPageEntry(pid.hashCode(), targetFrame));
+        frames[targetFrame] = page;
         return page;
     }
 
@@ -118,7 +121,7 @@ public class BufferPool {
     public  void insertTuple(TransactionId tid, int tableId, Tuple t)
         throws DbException, IOException, TransactionAbortedException {
         var file = Database.getCatalog().getDbFile(tableId);
-        file.addTuple(tid, t);
+        file.addTuple(tid, t).forEach(page -> page.markDirty(true, tid));
     }
 
     /**
@@ -138,7 +141,7 @@ public class BufferPool {
         throws DbException, TransactionAbortedException {
         var tableId = t.getRecordId().getPageId().getTableId();
         var file = Database.getCatalog().getDbFile(tableId);
-        file.deleteTuple(tid, t);
+        file.deleteTuple(tid, t).markDirty(true, tid);
     }
 
     /**
@@ -147,9 +150,12 @@ public class BufferPool {
      *     break simpledb if running in NO STEAL mode.
      */
     public synchronized void flushAllPages() throws IOException {
-        // some code goes here
-        // not necessary for lab1
-
+        for (int i = 0; i <= lastUsedFrame; i++) {
+            var page = frames[i];
+            if (page.isDirty() != null) {
+                flushPage(page.getId());
+            }
+        }
     }
 
     /** Remove the specific page id from the buffer pool.
@@ -167,8 +173,11 @@ public class BufferPool {
      * @param pid an ID indicating the page to flush
      */
     private synchronized  void flushPage(PageId pid) throws IOException {
-        // some code goes here
-        // not necessary for lab1
+        var pageEntry = storedPages.get(pid.hashCode());
+        var page = frames[pageEntry.index()];
+        var file = Database.getCatalog().getDbFile(pid.getTableId());
+        file.writePage(page);
+        page.markDirty(false, null);
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -183,10 +192,43 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized  void evictPage() throws DbException {
-        // some code goes here
-        // not necessary for lab1
+        while (true) {
+            var current = rc.next();
+            var currentPage = frames[current];
+            var currentPageHash = currentPage.getId().hashCode();
+            var currentPageEntry = storedPages.get(currentPageHash);
+            if (currentPageEntry.pinCount() > 0) {
+                continue;
+            }
+            if (currentPageEntry.referenced()) {
+                currentPageEntry.setReferenced(false);
+                continue;
+            }
+            try {
+                flushPage(currentPage.getId());
+            }
+            catch (IOException e) {
+                e.printStackTrace();
+                System.exit(1);
+            }
+            storedPages.remove(currentPageHash);
+            return;
+        }
     }
 
-    private int numPages;
-    private Hashtable<Integer, Page> pages;
+    /**
+     * Joel: Find an unused frame
+     */
+    private int findUnusedFrameIndex() throws DbException {
+        if (lastUsedFrame == frames.length - 1) {
+            evictPage();
+            return rc.current();
+        }
+        return ++lastUsedFrame;
+    }
+
+    private final Page[] frames;
+    private final Hashtable<Integer, BufferPoolPageEntry> storedPages;
+    private int lastUsedFrame = -1;
+    private final BufferPoolReplacementClock rc;
 }
