@@ -2,6 +2,8 @@ package simpledb;
 
 import java.io.*;
 import java.util.Hashtable;
+
+import javax.xml.crypto.Data;
 /**
  * BufferPool manages the reading and writing of pages into memory from
  * disk. Access methods call into it to retrieve pages, and it fetches
@@ -46,18 +48,28 @@ public class BufferPool {
      * @param pid the ID of the requested page
      * @param perm the requested permissions on the page
      */
-    public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
+    public Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
+        Page result;
         var entry = storedPages.get(pid.hashCode());
-        if (entry != null) {
-            return frames[entry.index()];
+
+        if (entry != null) { // cache hit
+            result = frames[entry.index()];
         }
-        var file = Database.getCatalog().getDbFile(pid.getTableId());
-        Page page = file.readPage(pid);
-        var targetFrame = findUnusedFrameIndex();
-        storedPages.put(pid.hashCode(), new BufferPoolPageEntry(pid.hashCode(), targetFrame));
-        frames[targetFrame] = page;
-        return page;
+        else { // cache miss
+            var file = Database.getCatalog().getDbFile(pid.getTableId());
+            Page page = file.readPage(pid);
+            var targetFrame = findUnusedFrameIndex();
+            storedPages.put(pid.hashCode(), new BufferPoolPageEntry(pid.hashCode(), targetFrame));
+            frames[targetFrame] = page;
+            result = page;
+        }
+        
+        if (perm.equals(Permissions.READ_ONLY))
+            locks.waitForLock(LockManagerRequest.Shared(tid, pid));
+        else
+            locks.waitForLock(LockManagerRequest.Exlusive(tid, pid));
+        return result;
     }
 
     /**
@@ -70,8 +82,7 @@ public class BufferPool {
      * @param pid the ID of the page to unlock
      */
     public  void releasePage(TransactionId tid, PageId pid) {
-        // some code goes here
-        // not necessary for lab1|lab2
+        locks.releaseLock(LockManagerRequest.Release(tid, pid));
     }
 
     /**
@@ -80,15 +91,12 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      */
     public  void transactionComplete(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+        locks.releaseLock(new LockManagerRequest(tid, null, null));
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
     public   boolean holdsLock(TransactionId tid, PageId p) {
-        // some code goes here
-        // not necessary for lab1|lab2
-        return false;
+        return locks.holdsLock(tid, p.hashCode());
     }
 
     /**
@@ -100,8 +108,7 @@ public class BufferPool {
      */
     public   void transactionComplete(TransactionId tid, boolean commit)
         throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+        locks.releaseLock(new LockManagerRequest(tid, null, null));
     }
 
     /**
@@ -231,4 +238,5 @@ public class BufferPool {
     private final Hashtable<Integer, BufferPoolPageEntry> storedPages;
     private int lastUsedFrame = -1;
     private final BufferPoolReplacementClock rc;
+    public final LockManager locks = new LockManager();
 }
