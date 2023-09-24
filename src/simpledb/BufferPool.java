@@ -90,7 +90,7 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      */
     public  void transactionComplete(TransactionId tid) throws IOException {
-        locks.releaseLock(new LockManagerRequest(tid, null, null));
+        transactionComplete(tid, true);
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
@@ -107,6 +107,25 @@ public class BufferPool {
      */
     public   void transactionComplete(TransactionId tid, boolean commit)
         throws IOException {
+        if (commit) {
+            // flush dirty pages associated with transaction
+            for (int i = 0; i <= lastUsedFrame; i++) {
+                var page = frames[i];
+                if (page.isDirty() == tid) {
+                    flushPage(page.getId());
+                }
+            }
+        } else {
+            for (int i = 0; i <= lastUsedFrame; i++) {
+                var page = frames[i];
+                if (page.isDirty() == tid) {
+                    var pid = page.getId();
+                    var file = Database.getCatalog().getDbFile(pid.getTableId());
+                    Page pristinePage = file.readPage(pid);
+                    frames[i] = pristinePage;
+                }
+            }
+        }
         locks.releaseLock(new LockManagerRequest(tid, null, null));
     }
 
@@ -197,10 +216,11 @@ public class BufferPool {
      * Discards a page from the buffer pool.
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
-    private synchronized  void evictPage() throws DbException {
+    private synchronized  int evictPage() throws DbException {
         rc.start();
+        int current;
         while (true) {
-            var current = rc.next();
+            current = rc.next();
             var currentPage = frames[current];
             var currentPageHash = currentPage.getId().hashCode();
             var currentPageEntry = storedPages.get(currentPageHash);
@@ -222,7 +242,7 @@ public class BufferPool {
                 System.exit(1);
             }
             storedPages.remove(currentPageHash);
-            return;
+            return current;
         }
     }
 
@@ -231,8 +251,7 @@ public class BufferPool {
      */
     private int findUnusedFrameIndex() throws DbException {
         if (lastUsedFrame == frames.length - 1) {
-            evictPage();
-            return rc.current();
+            return evictPage();
         }
         return ++lastUsedFrame;
     }

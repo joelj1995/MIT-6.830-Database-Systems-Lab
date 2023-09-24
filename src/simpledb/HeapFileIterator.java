@@ -56,7 +56,12 @@ public class HeapFileIterator implements DbFileIterator {
             curPageNo++;
             if (curPageNo >= numPages) throw new NoSuchElementException();
             PageId pageToRead = new HeapPageId(fileId, curPageNo);
+            if (pageToRead.pageno() == 10) {
+                var foo = 10;
+            }
             curPage = (HeapPage) bp.getPage(tid, pageToRead, Permissions.READ_ONLY);
+            if (!curPage.getId().equals(pageToRead)) 
+                throw new DbException("The expected page was not read." + curPage.getId().hashCode() + " " + pageToRead.hashCode());
         } while (curPage.getNumEmptySlots() == curPage.numSlots);
         
         curPageIterator = curPage.iterator();
