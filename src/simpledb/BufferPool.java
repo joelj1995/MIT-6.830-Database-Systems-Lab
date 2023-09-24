@@ -3,7 +3,6 @@ package simpledb;
 import java.io.*;
 import java.util.Hashtable;
 
-import javax.xml.crypto.Data;
 /**
  * BufferPool manages the reading and writing of pages into memory from
  * disk. Access methods call into it to retrieve pages, and it fetches
@@ -30,7 +29,7 @@ public class BufferPool {
     public BufferPool(int numPages) {
         this.frames = new Page[numPages];
         this.storedPages = new Hashtable<Integer, BufferPoolPageEntry>(numPages, 1.0f);
-        this.rc = new BufferPoolReplacementClock(numPages);
+        this.rc = new BufferPoolReplacementClock(numPages, !DbConfig.steal);
     }
 
     /**
@@ -199,6 +198,7 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized  void evictPage() throws DbException {
+        rc.start();
         while (true) {
             var current = rc.next();
             var currentPage = frames[current];
@@ -209,6 +209,9 @@ public class BufferPool {
             }
             if (currentPageEntry.referenced()) {
                 currentPageEntry.setReferenced(false);
+                continue;
+            }
+            if (!DbConfig.steal && currentPage.isDirty() != null) {
                 continue;
             }
             try {

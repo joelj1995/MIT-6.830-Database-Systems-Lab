@@ -14,7 +14,6 @@ public class Database {
 	private static Database _instance = new Database();
     private final Catalog _catalog;
     private BufferPool _bufferpool;
-    private final DbConfig config;
 
     private final static String LOGFILENAME = "log";
     private LogFile _logfile;
@@ -22,7 +21,6 @@ public class Database {
     private Database() {
     	_catalog = new Catalog();
     	_bufferpool = new BufferPool(BufferPool.DEFAULT_PAGES);
-        config = new DbConfig(false, true);
     	try {
             _logfile = new LogFile(new File(LOGFILENAME));
         } catch(IOException e) {
@@ -54,10 +52,6 @@ public class Database {
     public static BufferPool resetBufferPool(int pages) {
         _instance._bufferpool = new BufferPool(pages);
         return _instance._bufferpool;
-    }
-
-    public static DbConfig config() {
-        return _instance.config;
     }
 
     //reset the database, used for unit tests only.
