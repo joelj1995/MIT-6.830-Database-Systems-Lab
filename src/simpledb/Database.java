@@ -13,7 +13,7 @@ import java.io.*;
 public class Database {
 	private static Database _instance = new Database();
     private final Catalog _catalog;
-    private BufferPool _bufferpool; 
+    private BufferPool _bufferpool;
 
     private final static String LOGFILENAME = "log";
     private LogFile _logfile;

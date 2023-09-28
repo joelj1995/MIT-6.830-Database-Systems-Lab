@@ -2,6 +2,7 @@ package simpledb;
 
 import java.io.*;
 import java.util.Hashtable;
+
 /**
  * BufferPool manages the reading and writing of pages into memory from
  * disk. Access methods call into it to retrieve pages, and it fetches
@@ -28,7 +29,7 @@ public class BufferPool {
     public BufferPool(int numPages) {
         this.frames = new Page[numPages];
         this.storedPages = new Hashtable<Integer, BufferPoolPageEntry>(numPages, 1.0f);
-        this.rc = new BufferPoolReplacementClock(numPages);
+        this.rc = new BufferPoolReplacementClock(numPages, !DbConfig.steal);
     }
 
     /**
@@ -46,18 +47,28 @@ public class BufferPool {
      * @param pid the ID of the requested page
      * @param perm the requested permissions on the page
      */
-    public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
+    public Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
+        Page result;
         var entry = storedPages.get(pid.hashCode());
-        if (entry != null) {
-            return frames[entry.index()];
+
+        if (entry != null) { // cache hit
+            result = frames[entry.index()];
         }
-        var file = Database.getCatalog().getDbFile(pid.getTableId());
-        Page page = file.readPage(pid);
-        var targetFrame = findUnusedFrameIndex();
-        storedPages.put(pid.hashCode(), new BufferPoolPageEntry(pid.hashCode(), targetFrame));
-        frames[targetFrame] = page;
-        return page;
+        else { // cache miss
+            var file = Database.getCatalog().getDbFile(pid.getTableId());
+            Page page = file.readPage(pid);
+            var targetFrame = findUnusedFrameIndex();
+            storedPages.put(pid.hashCode(), new BufferPoolPageEntry(pid.hashCode(), targetFrame));
+            frames[targetFrame] = page;
+            result = page;
+        }
+        
+        if (perm.equals(Permissions.READ_ONLY))
+            locks.waitForLock(LockManagerRequest.Shared(tid, pid));
+        else
+            locks.waitForLock(LockManagerRequest.Exlusive(tid, pid));
+        return result;
     }
 
     /**
@@ -70,8 +81,7 @@ public class BufferPool {
      * @param pid the ID of the page to unlock
      */
     public  void releasePage(TransactionId tid, PageId pid) {
-        // some code goes here
-        // not necessary for lab1|lab2
+        locks.releaseLock(LockManagerRequest.Release(tid, pid));
     }
 
     /**
@@ -80,15 +90,12 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      */
     public  void transactionComplete(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+        transactionComplete(tid, true);
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
     public   boolean holdsLock(TransactionId tid, PageId p) {
-        // some code goes here
-        // not necessary for lab1|lab2
-        return false;
+        return locks.holdsLock(tid, p.hashCode());
     }
 
     /**
@@ -100,8 +107,26 @@ public class BufferPool {
      */
     public   void transactionComplete(TransactionId tid, boolean commit)
         throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+        if (commit) {
+            // flush dirty pages associated with transaction
+            for (int i = 0; i <= lastUsedFrame; i++) {
+                var page = frames[i];
+                if (page.isDirty() == tid) {
+                    flushPage(page.getId());
+                }
+            }
+        } else {
+            for (int i = 0; i <= lastUsedFrame; i++) {
+                var page = frames[i];
+                if (page.isDirty() == tid) {
+                    var pid = page.getId();
+                    var file = Database.getCatalog().getDbFile(pid.getTableId());
+                    Page pristinePage = file.readPage(pid);
+                    frames[i] = pristinePage;
+                }
+            }
+        }
+        locks.releaseLock(new LockManagerRequest(tid, null, null));
     }
 
     /**
@@ -191,9 +216,11 @@ public class BufferPool {
      * Discards a page from the buffer pool.
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
-    private synchronized  void evictPage() throws DbException {
+    private synchronized  int evictPage() throws DbException {
+        rc.start();
+        int current;
         while (true) {
-            var current = rc.next();
+            current = rc.next();
             var currentPage = frames[current];
             var currentPageHash = currentPage.getId().hashCode();
             var currentPageEntry = storedPages.get(currentPageHash);
@@ -204,6 +231,9 @@ public class BufferPool {
                 currentPageEntry.setReferenced(false);
                 continue;
             }
+            if (!DbConfig.steal && currentPage.isDirty() != null) {
+                continue;
+            }
             try {
                 flushPage(currentPage.getId());
             }
@@ -212,7 +242,7 @@ public class BufferPool {
                 System.exit(1);
             }
             storedPages.remove(currentPageHash);
-            return;
+            return current;
         }
     }
 
@@ -221,8 +251,7 @@ public class BufferPool {
      */
     private int findUnusedFrameIndex() throws DbException {
         if (lastUsedFrame == frames.length - 1) {
-            evictPage();
-            return rc.current();
+            return evictPage();
         }
         return ++lastUsedFrame;
     }
@@ -231,4 +260,5 @@ public class BufferPool {
     private final Hashtable<Integer, BufferPoolPageEntry> storedPages;
     private int lastUsedFrame = -1;
     private final BufferPoolReplacementClock rc;
+    public final LockManager locks = new LockManager();
 }

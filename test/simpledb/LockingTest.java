@@ -93,7 +93,7 @@ public class LockingTest extends TestUtil.CreateHeapFile {
     assertNull(t.getError());
 
     // TODO(ghuo): yes, stop() is evil, but this is unit test cleanup
-    t.stop();
+    t.interrupt();
   }
 
   /**

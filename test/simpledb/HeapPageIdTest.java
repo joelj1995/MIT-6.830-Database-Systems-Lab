@@ -76,6 +76,12 @@ public class HeapPageIdTest extends SimpleDbTestBase {
         assertFalse(pid2.equals(pid1Copy));
     }
 
+    @Test public void testCollision() {
+        HeapPageId pid1 = new HeapPageId(308015266, 9);
+        HeapPageId pid2 = new HeapPageId(308015266, 10);
+        assertFalse(pid1.equals(pid2));
+    }
+
     /**
      * JUnit suite target
      */

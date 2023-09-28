@@ -37,6 +37,10 @@ public class BufferPoolPageEntry {
         referenced = r;
     }
 
+    public String toString() {
+        return "Hash: " + Integer.toHexString(hash) + " Index: " + index;
+    }
+
     private int hash;
     private int index;
     private int pinCount;

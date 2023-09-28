@@ -63,7 +63,10 @@ public class HeapFile implements DbFile {
             byte[] pageData = new byte[BufferPool.PAGE_SIZE];
             int offset = pid.pageno() * BufferPool.PAGE_SIZE;
             raf.seek(offset);
-            raf.read(pageData, 0, BufferPool.PAGE_SIZE);
+            if (raf.read(pageData, 0, BufferPool.PAGE_SIZE) == -1) {
+                raf.close();
+                throw new IllegalArgumentException(pid.toString());
+            }
             HeapPage page = new HeapPage(hpid, pageData);
             raf.close();
             return page;
@@ -99,7 +102,6 @@ public class HeapFile implements DbFile {
         throws DbException, IOException, TransactionAbortedException {
         var pageForInsert = getPageForInsert(tid);
         pageForInsert.addTuple(t);
-        writePage(pageForInsert);
         var result = new ArrayList<Page>();
         result.add(pageForInsert);
         return result;
@@ -115,7 +117,7 @@ public class HeapFile implements DbFile {
             if (nextTuple.equals(t)) {
                 var pageId = nextTuple.getRecordId().getPageId();
                 iTuples.close();
-                var page = (HeapPage)Database.getBufferPool().getPage(tid, pageId, null);
+                var page = (HeapPage)Database.getBufferPool().getPage(tid, pageId, Permissions.READ_WRITE);
                 page.deleteTuple(t);
                 return page;
             }
@@ -130,13 +132,14 @@ public class HeapFile implements DbFile {
 
     private HeapPage getPageForInsert(TransactionId tid) throws IOException, TransactionAbortedException, DbException {
         var lastPageId = new HeapPageId(getId(), numPages() - 1);
-        var page = (HeapPage)Database.getBufferPool().getPage(tid, lastPageId, null);
+        var page = (HeapPage)Database.getBufferPool().getPage(tid, lastPageId, Permissions.READ_WRITE);
 
         if (page.getNumEmptySlots() > 0) return page;
 
         var newPageId = lastPageId.forward();
         var newPage = new HeapPage(newPageId, HeapPage.createEmptyPageData());
-        return newPage;
+        writePage(newPage);
+        return (HeapPage)Database.getBufferPool().getPage(tid, newPageId, Permissions.READ_WRITE);
     }
     
     private final File f;
