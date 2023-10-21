@@ -23,7 +23,7 @@ public class AggregatorCounter {
         count += 1;
         sum += next;
         min = Math.min(next, min);
-        max = Math.max(next, min);
+        max = Math.max(next, max);
     }
 
     public void Next(String next)
