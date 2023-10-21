@@ -24,21 +24,22 @@ public class LockManager {
         return true;
     }
 
-    public void waitForLock(LockManagerRequest request) throws DbException {
+    public void waitForLock(LockManagerRequest request) throws DbException, TransactionAbortedException {
         if (request.transactionId() == null) return;
         int wait = 0;
         while (true) {
-            try {
+            // try {
                 if (acquireLock(request)) return;
-                Thread.sleep(DbConfig.lockWaitMs);
+                //Thread.sleep(DbConfig.lockWaitMs);
                 wait += DbConfig.lockWaitMs;
                 if (wait > DbConfig.maxLockWaitMs) {
-                    throw new DbException("Waited too long for lock.\nRquest:\n" + request.toString() + "\nEntries:\n" + this.toString());
+                    //System.out.println("Waited too long for lock.\nRequest:\n" + request.toString() + "\nEntries:\n" + this.toString());
+                    throw new TransactionAbortedException();
                 }
-            }
-            catch (InterruptedException e) {
-                throw new DbException("Process was interrupted while waiting for lock.");
-            }
+            // }
+            // catch (InterruptedException e) {
+            //     throw new DbException("Process was interrupted while waiting for lock.");
+            // }
         }
     }
 
