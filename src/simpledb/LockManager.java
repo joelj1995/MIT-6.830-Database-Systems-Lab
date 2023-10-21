@@ -6,6 +6,7 @@ import java.util.List;
 public class LockManager {
     
     public synchronized boolean acquireLock(LockManagerRequest request) {
+        if (request.transactionId() == null) return true;
         var existingLocks = findEntriesByObjectId(request.objectHash());
         for (LockManagerEntry existingLock : existingLocks) {
             if (existingLock.owner().equals(request.transactionId())) {
@@ -24,6 +25,7 @@ public class LockManager {
     }
 
     public void waitForLock(LockManagerRequest request) throws DbException {
+        if (request.transactionId() == null) return;
         int wait = 0;
         while (true) {
             try {
