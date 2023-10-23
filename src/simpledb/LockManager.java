@@ -7,6 +7,7 @@ public class LockManager {
     
     public synchronized boolean acquireLock(LockManagerRequest request) {
         if (request.transactionId() == null) return true;
+        if (vipForWrite != null && !vipForWrite.equals(request.transactionId())) return false;
         var existingLocks = findEntriesByObjectId(request.objectHash());
         for (LockManagerEntry existingLock : existingLocks) {
             if (existingLock.owner().equals(request.transactionId())) {
@@ -24,22 +25,37 @@ public class LockManager {
         return true;
     }
 
+    public synchronized boolean checkAndLockForVip(LockManagerRequest request) {
+        if (vipForWrite != null) return false;
+        if (request.lockMode().equals(LockMode.X)) {
+            vipForWrite = request.transactionId();
+            return true;
+        }
+        return false;
+    }
+
     public void waitForLock(LockManagerRequest request) throws DbException, TransactionAbortedException {
         if (request.transactionId() == null) return;
+        var amVip = checkAndLockForVip(request);
         int wait = 0;
-        while (true) {
-            // try {
+        if (amVip) {
+            wait -= DbConfig.lockWaitMs;
+        }
+        try {
+            while (true) {
                 if (acquireLock(request)) return;
-                //Thread.sleep(DbConfig.lockWaitMs);
+                Thread.sleep(DbConfig.lockWaitMs);
                 wait += DbConfig.lockWaitMs;
                 if (wait > DbConfig.maxLockWaitMs) {
-                    //System.out.println("Waited too long for lock.\nRequest:\n" + request.toString() + "\nEntries:\n" + this.toString());
                     throw new TransactionAbortedException();
                 }
-            // }
-            // catch (InterruptedException e) {
-            //     throw new DbException("Process was interrupted while waiting for lock.");
-            // }
+            }
+        }
+        catch (InterruptedException e) {
+            throw new DbException("Process was interrupted while waiting for lock.");
+        }
+        finally {
+            if (amVip) vipForWrite = null;
         }
     }
 
@@ -69,7 +85,7 @@ public class LockManager {
         return false;
     }
 
-    public String toString() {
+    public synchronized String toString() {
         var result = "";
         for (LockManagerEntry lock : locks) {
             result += lock.toString() + "\n";
@@ -97,5 +113,6 @@ public class LockManager {
         return result;
     }
 
+    private TransactionId vipForWrite;
     private final List<LockManagerEntry> locks = new ArrayList<LockManagerEntry>();
 }

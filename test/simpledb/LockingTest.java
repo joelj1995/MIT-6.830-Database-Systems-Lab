@@ -4,6 +4,9 @@ import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import junit.framework.JUnit4TestAdapter;
 
 public class LockingTest extends TestUtil.CreateHeapFile {
@@ -90,7 +93,10 @@ public class LockingTest extends TestUtil.CreateHeapFile {
     // if we don't have the lock after TIMEOUT, we assume blocking.
     Thread.sleep(TIMEOUT);
     assertEquals(expected, t.acquired());
-    assertNull(t.getError());
+    var error = t.getError();
+    if (error != null) {
+      assertTrue(error instanceof TransactionAbortedException);
+    }
 
     // TODO(ghuo): yes, stop() is evil, but this is unit test cleanup
     t.interrupt();

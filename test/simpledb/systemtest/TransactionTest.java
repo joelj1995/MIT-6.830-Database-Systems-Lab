@@ -21,7 +21,9 @@ import static org.junit.Assert.*;
  */
 public class TransactionTest extends SimpleDbTestBase {
     // Wait up to 10 minutes for the test to complete
-    private static final int TIMEOUT_MILLIS = 10 * 60 * 1000;
+    private static final int TIMEOUT_MILLIS = 10 * 60 * 1000;    
+    //private static final int TIMEOUT_MILLIS = 10 * 60 * 100;
+
     private void validateTransactions(int threads)
             throws DbException, TransactionAbortedException, IOException {
         // Create a table with a single integer value = 0
@@ -48,7 +50,8 @@ public class TransactionTest extends SimpleDbTestBase {
                 throw new RuntimeException(e);
             }
             if (tester.isAlive()) {
-                fail("Timed out waiting for transaction to complete");
+                var currentLocks = Database.getBufferPool().dbgGetLocks();
+                fail("Timed out waiting for transaction to complete\n" + currentLocks);
             }
 
             if (tester.exception != null) {
