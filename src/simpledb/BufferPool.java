@@ -256,6 +256,10 @@ public class BufferPool {
         return ++lastUsedFrame;
     }
 
+    public String dbgGetLocks() {
+        return locks.toString();
+    }
+
     private final Page[] frames;
     private final Hashtable<Integer, BufferPoolPageEntry> storedPages;
     private int lastUsedFrame = -1;

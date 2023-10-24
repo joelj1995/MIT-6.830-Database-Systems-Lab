@@ -54,6 +54,17 @@ public class LockManagerTest {
         result = lm.acquireLock(request);
         assertTrue(result);
     }
+    
+    @Test public void testTransactionCanAcquireSharedLockIfHasXLock() {
+        var tid = new TransactionId();
+        PageId pid = new HeapPageId(1, 1);
+        var request = new LockManagerRequest(tid, pid.hashCode(), LockMode.X);
+        var result = lm.acquireLock(request);
+        assertTrue(result);
+        request = new LockManagerRequest(tid, pid.hashCode(), LockMode.X);
+        result = lm.acquireLock(request);
+        assertTrue(result);
+    }
 
     @Test public void testReleaseLock() {
         var tid = new TransactionId();

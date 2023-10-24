@@ -24,8 +24,14 @@ public class Aggregate extends AbstractDbIterator {
     public Aggregate(DbIterator child, int afield, int gfield, Aggregator.Op aop) {
         this.child = child;
         var afieldType = child.getTupleDesc().getType(afield);
-        var gfieldType = child.getTupleDesc().getType(gfield);
-        var gfieldName = child.getTupleDesc().getFieldName(gfield);
+        Type gfieldType = null;
+        if (gfield == Aggregator.NO_GROUPING) {
+            this.td = new TupleDesc(new Type[] { Type.INT_TYPE }, new String[] { aggName(aop) });
+        } else {
+            gfieldType = child.getTupleDesc().getType(gfield);
+            var gfieldName = child.getTupleDesc().getFieldName(gfield);
+            this.td = new TupleDesc(new Type[] { afieldType, Type.INT_TYPE }, new String[] { gfieldName, aggName(aop) });
+        }
         switch (aop) {
             case MIN:
             case MAX:
@@ -39,11 +45,7 @@ public class Aggregate extends AbstractDbIterator {
         this.afield = afield;
         this.gfield = gfield;
         this.aop = aop;
-        if (gfield == Aggregator.NO_GROUPING) {
-            this.td = new TupleDesc(new Type[] { Type.INT_TYPE }, new String[] { aggName(aop) });
-        } else {
-            this.td = new TupleDesc(new Type[] { afieldType, Type.INT_TYPE }, new String[] { gfieldName, aggName(aop) });
-        }
+        
     }
 
     public static String aggName(Aggregator.Op aop) {
