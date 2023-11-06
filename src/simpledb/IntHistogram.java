@@ -1,5 +1,6 @@
 package simpledb;
 
+import java.security.InvalidParameterException;
 import java.util.ArrayList;
 
 /** A class to represent a fixed-width histogram over a single integer-based field.
@@ -23,7 +24,15 @@ public class IntHistogram {
      * @param max The maximum integer value that will ever be passed to this class for histogramming
      */
     public IntHistogram(int buckets, int min, int max) {
-    	// some code goes here
+        if (buckets < 1) {
+            throw new InvalidParameterException();
+        }
+        if (min > max) {
+            throw new InvalidParameterException();
+        }
+        bins = new int[buckets];
+        this.min = min;
+        this.max = max;
     }
 
     /**
@@ -31,7 +40,14 @@ public class IntHistogram {
      * @param v Value to add to the histogram
      */
     public void addValue(int v) {
-    	// some code goes here
+        if (v < min) {
+            throw new InvalidParameterException();
+        }
+        if (v > max) {
+            throw new InvalidParameterException();
+        }
+        bins[getBin(v)]++;
+        total++;
     }
 
     /**
@@ -45,9 +61,82 @@ public class IntHistogram {
      * @return Predicted selectivity of this particular operator and value
      */
     public double estimateSelectivity(Predicate.Op op, int v) {
-
-    	// some code goes here
-        return -1.0;
+        var bin = getBin(v);
+        var estimatedCount = 0.0f;
+        switch (op) {
+            case EQUALS:
+                if (bin < firstBin() || bin > lastBin()) {
+                    return 0.0;
+                }
+                return (float)bins[bin] / total;
+            case GREATER_THAN: // f > const
+                if (bin < firstBin()) {
+                    return 1.0;
+                }
+                if (bin > lastBin()) {
+                    return 0.0;
+                }
+                // walk bins above v
+                for (int i = bin + 1; i < bins.length; i++) {
+                    estimatedCount += bins[i];
+                }
+                // add the fraction estimated in the bucket for v
+                estimatedCount += ((float)(binRight(bin) - v) / binWidth(bin)) * total;
+                return estimatedCount / total;
+            case LESS_THAN:
+                if (bin < firstBin()) {
+                    return 0.0;
+                }
+                if (bin > lastBin()) {
+                    return 1.0;
+                }
+                // walk bins below v
+                for (int i = 0; i < bin; i++) {
+                    estimatedCount += bins[i];
+                }
+                // add the fraction estimated in the bucket for v
+                estimatedCount += ((float)(v - binLeft(bin)) / binWidth(bin)) * total;
+                return estimatedCount / total;
+            case LESS_THAN_OR_EQ:
+                v++;
+                bin = getBin(v);
+                if (bin < firstBin()) {
+                    return 0.0;
+                }
+                if (bin > lastBin()) {
+                    return 1.0;
+                }
+                // walk bins below v
+                for (int i = 0; i < bin; i++) {
+                    estimatedCount += bins[i];
+                }
+                // add the fraction estimated in the bucket for v
+                estimatedCount += ((float)(v - binLeft(bin)) / binWidth(bin)) * total;
+                return estimatedCount / total;
+            case GREATER_THAN_OR_EQ: // f > const
+                v--;
+                bin = getBin(v);
+                if (bin < firstBin()) {
+                    return 1.0;
+                }
+                if (bin > lastBin()) {
+                    return 0.0;
+                }
+                // walk bins above v
+                for (int i = bin + 1; i < bins.length; i++) {
+                    estimatedCount += bins[i];
+                }
+                // add the fraction estimated in the bucket for v
+                estimatedCount += ((float)(binRight(bin) - v) / binWidth(bin)) * total;
+                return estimatedCount / total;
+            case NOT_EQUALS:
+                if (bin < firstBin() || bin > lastBin()) {
+                    return 0.0;
+                }
+                return 1 - (float)bins[bin] / total;
+            default:
+                throw new UnsupportedOperationException();
+        }
     }
     
     /**
@@ -58,4 +147,48 @@ public class IntHistogram {
         // some code goes here
         return null;
     }
+
+    public int getBin(int v) {
+        return (int)((
+                (float)(v - min) 
+                / 
+                (max - min + 1)
+            ) * bins.length);
+    }
+
+    public int firstBin() {
+        return 0;
+    }
+
+    public int lastBin() {
+        return bins.length - 1;
+    }
+
+    public int binWidth(int i) {
+        int endToEndWith = max - min + 1;
+        return (endToEndWith / bins.length) +
+            (i + 1 <= endToEndWith % bins.length ? 
+                1 : 0);
+    }
+
+    public int binRight(int i) {
+        int endToEndWith = max - min + 1;
+        return min 
+            + (endToEndWith / bins.length) * (i + 1) 
+            + Math.min(endToEndWith % bins.length, i + 1) 
+            - 1;
+    }
+
+    public int binLeft(int i) {
+        int endToEndWith = max - min + 1;
+        return min 
+            + (endToEndWith / bins.length) * i 
+            + Math.min(endToEndWith % bins.length, i);
+    }
+
+    private int total = 0;
+
+    private int[] bins;
+    private final int min; 
+    private final int max;
 }
