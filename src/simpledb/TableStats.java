@@ -18,11 +18,41 @@ public class TableStats {
      * 		                This doesn't differentiate between sequential-scan IO and disk seeks.
      */
     public TableStats (int tableid, int ioCostPerPage) {
-        // For this function, you'll have to get the DbFile for the table in question,
-    	// then scan through its tuples and calculate the values that you need.
-    	// You should try to do this reasonably efficiently, but you don't necessarily
-    	// have to (for example) do everything in a single scan of the table.
-    	// some code goes here
+        this.ioCostPerPage = ioCostPerPage;
+        int tmpTupleCount = 0;
+        try {
+            var tableFile = Database.getCatalog().getDbFile(tableid);
+            this.numPages = ((HeapFile)tableFile).numPages();
+            var tableDesc = Database.getCatalog().getTupleDesc(tableid);
+            this.fields = new TableStatsField[tableDesc.numFields()];
+            for (int i = 0; i < tableDesc.numFields(); i++) {
+                this.fields[i] = new TableStatsField(tableDesc.getType(i));
+            }
+            var it = tableFile.iterator(null);
+            it.open();
+            while (it.hasNext()) {
+                tmpTupleCount++;
+                var tuple = it.next();
+                for (int i = 0; i < tableDesc.numFields(); i++) {
+                    fields[i].processValueForRange(tuple.getField(i));
+                }
+            }
+            for (int i = 0; i < tableDesc.numFields(); i++) {
+                this.fields[i].commitRange(NUM_HIST_BINS);
+            }
+            it.rewind();
+            while (it.hasNext()) {
+                var tuple = it.next();
+                for (int i = 0; i < tableDesc.numFields(); i++) {
+                    fields[i].processValueForStats(tuple.getField(i));
+                }
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+        tupleCount = tmpTupleCount;
     }
 
     /** 
@@ -39,8 +69,7 @@ public class TableStats {
      * @return The estimated cost of scanning the table.
      */ 
     public double estimateScanCost() {
-    	// some code goes here
-        return 0;
+        return ioCostPerPage * numPages;
     }
 
     /** 
@@ -52,8 +81,7 @@ public class TableStats {
      * @return The estimated cardinality of the scan with the specified selectivityFactor
      */
     public int estimateTableCardinality(double selectivityFactor) {
-    	// some code goes here
-        return 0;
+        return (int)Math.round((double)tupleCount * selectivityFactor);        
     }
 
     /** 
@@ -65,8 +93,11 @@ public class TableStats {
      * @return The estimated selectivity (fraction of tuples that satisfy) the predicate
      */
     public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
-    	// some code goes here
-        return 1.0;
+    	return fields[field].estimateSelectivity(op, constant);
     }
 
+    private TableStatsField[] fields;
+    private final int ioCostPerPage;
+    private int numPages;
+    private final int tupleCount;
 }

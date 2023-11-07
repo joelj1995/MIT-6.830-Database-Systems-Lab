@@ -31,6 +31,15 @@ public class IntHistogramTestJoel {
         Assert.assertEquals(4, histogram.getBin(20));
     }
 
+    @Test public void testGetBinWhenMoreBinsThanValues() {
+        var histogram = new IntHistogram(50, 0, 4);
+        Assert.assertEquals(0, histogram.getBin(0));
+        Assert.assertEquals(1, histogram.getBin(1));
+        Assert.assertEquals(2, histogram.getBin(2));
+        Assert.assertEquals(3, histogram.getBin(3));
+        Assert.assertEquals(4, histogram.getBin(4));
+    }
+
     @Test public void testGreaterThanSelectivityBasic() {
         var histogram = new IntHistogram(5, 10, 20);
 
@@ -100,6 +109,23 @@ public class IntHistogramTestJoel {
         }
         
         Assert.assertEquals(0.5, histogram.estimateSelectivity(Op.GREATER_THAN_OR_EQ, 16), 0.01);
+    }
+
+    @Test public void testBinWidthWhenMoreBinsThanValues() {
+        var histogram = new IntHistogram(5000, 0, 10);
+
+        Assert.assertEquals(1, histogram.binWidth(0));
+        Assert.assertEquals(1, histogram.binWidth(1));
+        Assert.assertEquals(1, histogram.binWidth(2));
+        Assert.assertEquals(1, histogram.binWidth(3));
+        Assert.assertEquals(1, histogram.binWidth(4));        
+        Assert.assertEquals(1, histogram.binWidth(5));        
+        Assert.assertEquals(1, histogram.binWidth(6));        
+        Assert.assertEquals(1, histogram.binWidth(7));
+        Assert.assertEquals(1, histogram.binWidth(8));
+        Assert.assertEquals(1, histogram.binWidth(9));        
+        Assert.assertEquals(1, histogram.binWidth(10));    
+        Assert.assertEquals(0, histogram.binWidth(11));
     }
 
     @Test public void testBinWidth() {

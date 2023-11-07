@@ -131,7 +131,7 @@ public class IntHistogram {
                 return estimatedCount / total;
             case NOT_EQUALS:
                 if (bin < firstBin() || bin > lastBin()) {
-                    return 0.0;
+                    return 1.0;
                 }
                 return 1 - (float)bins[bin] / total;
             default:
@@ -149,6 +149,9 @@ public class IntHistogram {
     }
 
     public int getBin(int v) {
+        if (endToEndWidth() < bins.length) {
+            return v - min;
+        }
         return (int)((
                 (float)(v - min) 
                 / 
@@ -161,29 +164,31 @@ public class IntHistogram {
     }
 
     public int lastBin() {
-        return bins.length - 1;
+        return Math.min(bins.length - 1, endToEndWidth()-1);
     }
 
     public int binWidth(int i) {
-        int endToEndWith = max - min + 1;
-        return (endToEndWith / bins.length) +
-            (i + 1 <= endToEndWith % bins.length ? 
+        var width = (endToEndWidth() / bins.length) +
+            (i + 1 <= endToEndWidth() % bins.length ? 
                 1 : 0);
+        return width;
     }
 
     public int binRight(int i) {
-        int endToEndWith = max - min + 1;
         return min 
-            + (endToEndWith / bins.length) * (i + 1) 
-            + Math.min(endToEndWith % bins.length, i + 1) 
+            + (endToEndWidth() / bins.length) * (i + 1) 
+            + Math.min(endToEndWidth() % bins.length, i + 1) 
             - 1;
     }
 
     public int binLeft(int i) {
-        int endToEndWith = max - min + 1;
         return min 
-            + (endToEndWith / bins.length) * i 
-            + Math.min(endToEndWith % bins.length, i);
+            + (endToEndWidth() / bins.length) * i 
+            + Math.min(endToEndWidth() % bins.length, i);
+    }
+
+    private int endToEndWidth() {
+        return max - min + 1;
     }
 
     private int total = 0;
