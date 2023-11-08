@@ -88,7 +88,9 @@ public class JoinOptimizer {
             // Insert your code here.
             // HINT:  You may need to use the variable "j" if you implemented a join
             //        algorithm that's more complicated than a basic nested-loops join.
-            return -1.0;
+            return cost1         // outer IO
+                + card1 * cost2  // inner IO
+                + card1 * card2; // inner predicate
         }
     }
 
@@ -110,8 +112,25 @@ public class JoinOptimizer {
             // You do not need to implement proper support for these for Lab 4.
             return card1;
         } else {
-            // some code goes here
-            return -1;
+            switch (j.p) {
+                case NOT_EQUALS:
+                case EQUALS:
+                    if (!(t1pkey || t2pkey)) { // no primary keys
+                        return Math.max(card1, card2);
+                    }
+                    else if (t1pkey) {
+                        return card2;
+                    }
+                    else if (t2pkey) {
+                        return card1;
+                    }
+                    else {
+                        return Math.min(card1, card2);
+                    }
+                default:
+                    return (int)(0.3 * card1 * card2);
+            }
+
         }
     }
 
